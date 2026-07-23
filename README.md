@@ -34,3 +34,35 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+---
+
+Quick start — push to GitHub and enable automatic deploys
+
+1. Initialize git (if not already) and commit your code locally:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: Sparkompas"
+```
+
+2. Create a repository on GitHub (via the website) and add it as remote, then push:
+
+```bash
+git remote add origin <YOUR_GIT_REMOTE_URL>
+git branch -M main
+git push -u origin main
+```
+
+3. In Vercel: klik "New Project", vælg repo og importér. Vercel vil automatisk bygge Next.js-projektet og aktivere automatisk deploy ved hver push.
+
+Manuel deploy med Vercel CLI:
+
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+Bemærk: Appen bruger `localStorage` til data — hvis du ønsker server-side persistence senere, tilføj en database og konfigurer miljøvariabler i Vercel.
