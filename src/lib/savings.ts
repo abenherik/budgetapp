@@ -185,7 +185,7 @@ export function evaluatePortfolio(
         goal.monthlyNeed *
           Math.min(
             getMonthsBetween(goal.createdAt, goal.targetDate),
-            getMonthsSince(goal.createdAt, referenceDate) + 1,
+            getMonthsSince(goal.createdAt, referenceDate),
           ),
       ),
     })),
@@ -201,7 +201,7 @@ export function evaluatePortfolio(
         : 100;
     const elapsedMonths = Math.min(
       getMonthsBetween(goal.createdAt, goal.targetDate),
-      getMonthsSince(goal.createdAt, referenceDate) + 1,
+      getMonthsSince(goal.createdAt, referenceDate),
     );
     const expectedSavedAmount = goal.monthlyNeed * elapsedMonths;
     const shortfall = Math.max(0, expectedSavedAmount - allocatedAmount);
