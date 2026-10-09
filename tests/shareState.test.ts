@@ -11,7 +11,7 @@ test("buildShareUrl encodes the current app state into the query string", () => 
 });
 
 test("calculates cumulative shortfall for the elapsed goal period", () => {
-  const { goals } = evaluatePortfolio(
+  const { goals, summary } = evaluatePortfolio(
     {
       bankBalance: 1000,
       goals: [
@@ -31,8 +31,8 @@ test("calculates cumulative shortfall for the elapsed goal period", () => {
   assert.equal(goals[0].shortfall, 4000);
 });
 
-test("shows a goal as ahead when its monthly need is covered", () => {
-  const { goals } = evaluatePortfolio(
+test("keeps excess money as surplus when monthly need is covered", () => {
+  const { goals, summary } = evaluatePortfolio(
     {
       bankBalance: 60000,
       goals: [
@@ -48,21 +48,23 @@ test("shows a goal as ahead when its monthly need is covered", () => {
     new Date("2025-03-01T00:00:00.000Z"),
   );
 
-  assert.equal(goals[0].status, "ahead");
+  assert.equal(goals[0].status, "on-track");
   assert.equal(goals[0].shortfall, 0);
-  assert.equal(goals[0].paceDelta, 10000);
+  assert.equal(goals[0].paceDelta, 0);
+  assert.equal(goals[0].allocatedAmount, 50000);
+  assert.equal(summary.remainingReserve, 10000);
 });
 
 test("redistributes surplus after a goal is fully funded", () => {
-  const { goals } = evaluatePortfolio(
+  const { goals, summary } = evaluatePortfolio(
     {
       bankBalance: 15000,
       goals: [
         {
           id: "goal-1",
           name: "Lille mål",
-          targetAmount: 1000,
-          targetDate: "2025-05-01",
+          targetAmount: 1,
+          targetDate: "2025-04-01",
           createdAt: "2025-01-01T00:00:00.000Z",
         },
         {
@@ -77,7 +79,8 @@ test("redistributes surplus after a goal is fully funded", () => {
     new Date("2025-03-01T00:00:00.000Z"),
   );
 
-  assert.equal(goals[0].allocatedAmount, 1000);
+  assert.equal(goals[0].allocatedAmount, 1);
   assert.equal(goals[0].status, "completed");
-  assert.equal(goals[1].allocatedAmount, 14000);
+  assert.equal(Math.round(goals[1].allocatedAmount), 3846);
+  assert.equal(Math.round(summary.remainingReserve), 11153);
 });

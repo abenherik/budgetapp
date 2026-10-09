@@ -184,7 +184,7 @@ export function evaluatePortfolio(
 
   const evaluatedGoals = goals.map((goal) => {
     const allocatedAmount = allocations.get(goal.id) ?? 0;
-    const paceDelta = allocatedAmount - goal.monthlyNeed;
+    const paceDelta = Math.max(0, allocatedAmount - goal.monthlyNeed);
     const fundingRatio = goal.monthlyNeed > 0 ? allocatedAmount / goal.monthlyNeed : 1;
     const progressPercent =
       goal.targetAmount > 0
@@ -195,12 +195,8 @@ export function evaluatePortfolio(
     let status: GoalEvaluation["status"] = "on-track";
     if (allocatedAmount >= goal.targetAmount - 0.01) {
       status = "completed";
-    } else if (goal.monthlyNeed > 0) {
-      if (paceDelta < -0.5) {
-        status = "behind";
-      } else if (paceDelta > 0.5) {
-        status = "ahead";
-      }
+    } else if (goal.monthlyNeed > 0 && paceDelta < -0.5) {
+      status = "behind";
     }
 
     return {
@@ -221,8 +217,6 @@ export function evaluatePortfolio(
 
       if (goal.status === "behind") {
         accumulator.behindCount += 1;
-      } else if (goal.status === "ahead") {
-        accumulator.aheadCount += 1;
       } else {
         accumulator.onTrackCount += 1;
       }
@@ -338,7 +332,10 @@ function distributeBalance(
     for (const index of activeIndexes) {
       const goal = goals[index];
       const currentAllocation = allocations.get(goal.id) ?? 0;
-      const remainingCapacity = Math.max(0, goal.targetAmount - currentAllocation);
+      const remainingCapacity = Math.max(
+        0,
+        Math.min(goal.targetAmount, goal.monthlyNeed) - currentAllocation,
+      );
 
       if (remainingCapacity <= 0.01) {
         continue;
