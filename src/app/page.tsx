@@ -538,7 +538,7 @@ function GoalCard({
           <>Dette mål er opfyldt.</>
         ) : goal.status === "behind" ? (
           <>
-            Dette mål mangler {formatAmount(goal.shortfall)} pr. måned.
+            Dette mål har en samlet manko på {formatAmount(goal.shortfall)}.
           </>
         ) : goal.status === "ahead" ? (
           <>

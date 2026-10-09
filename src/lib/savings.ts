@@ -155,9 +155,10 @@ export function evaluatePortfolio(
   const sanitizedBalance = Math.max(0, state.bankBalance);
   const goals = state.goals.map((goal) => {
     const monthsRemaining = getMonthsUntilTarget(goal.targetDate, referenceDate);
+    const planMonths = getMonthsBetween(goal.createdAt, goal.targetDate);
     const monthlyNeed =
-      goal.targetAmount > 0 && monthsRemaining > 0
-        ? goal.targetAmount / monthsRemaining
+      goal.targetAmount > 0 && planMonths > 0
+        ? goal.targetAmount / planMonths
         : 0;
 
     return {
@@ -184,18 +185,23 @@ export function evaluatePortfolio(
 
   const evaluatedGoals = goals.map((goal) => {
     const allocatedAmount = allocations.get(goal.id) ?? 0;
-    const paceDelta = Math.max(0, allocatedAmount - goal.monthlyNeed);
+    const paceDelta = 0;
     const fundingRatio = goal.monthlyNeed > 0 ? allocatedAmount / goal.monthlyNeed : 1;
     const progressPercent =
       goal.targetAmount > 0
         ? Math.min(100, (allocatedAmount / goal.targetAmount) * 100)
         : 100;
-    const shortfall = Math.max(0, goal.monthlyNeed - allocatedAmount);
+    const elapsedMonths = Math.min(
+      getMonthsBetween(goal.createdAt, goal.targetDate),
+      getMonthsSince(goal.createdAt, referenceDate) + 1,
+    );
+    const expectedSavedAmount = goal.monthlyNeed * elapsedMonths;
+    const shortfall = Math.max(0, expectedSavedAmount - allocatedAmount);
 
     let status: GoalEvaluation["status"] = "on-track";
     if (allocatedAmount >= goal.targetAmount - 0.01) {
       status = "completed";
-    } else if (goal.monthlyNeed > 0 && paceDelta < -0.5) {
+    } else if (shortfall > 0.5) {
       status = "behind";
     }
 
@@ -332,10 +338,7 @@ function distributeBalance(
     for (const index of activeIndexes) {
       const goal = goals[index];
       const currentAllocation = allocations.get(goal.id) ?? 0;
-      const remainingCapacity = Math.max(
-        0,
-        Math.min(goal.targetAmount, goal.monthlyNeed) - currentAllocation,
-      );
+      const remainingCapacity = Math.max(0, goal.targetAmount - currentAllocation);
 
       if (remainingCapacity <= 0.01) {
         continue;
