@@ -180,6 +180,14 @@ export function evaluatePortfolio(
       id: goal.id,
       monthlyNeed: goal.monthlyNeed,
       targetAmount: goal.targetAmount,
+      currentPlanAmount: Math.min(
+        goal.targetAmount,
+        goal.monthlyNeed *
+          Math.min(
+            getMonthsBetween(goal.createdAt, goal.targetDate),
+            getMonthsSince(goal.createdAt, referenceDate) + 1,
+          ),
+      ),
     })),
   );
 
@@ -275,7 +283,8 @@ function getMonthsBetween(createdAt: string, targetDate: string): number {
   return Math.max(
     1,
     (target.getFullYear() - createdDate.getFullYear()) * 12 +
-      (target.getMonth() - createdDate.getMonth()),
+      (target.getMonth() - createdDate.getMonth()) +
+      1,
   );
 }
 
@@ -309,14 +318,20 @@ export function getMonthsUntilTarget(
 
   const monthDifference =
     (target.getFullYear() - referenceDate.getFullYear()) * 12 +
-    (target.getMonth() - referenceDate.getMonth());
+    (target.getMonth() - referenceDate.getMonth()) +
+    1;
 
   return Math.max(1, monthDifference);
 }
 
 function distributeBalance(
   balance: number,
-  goals: Array<{ id: string; monthlyNeed: number; targetAmount: number }>,
+  goals: Array<{
+    id: string;
+    monthlyNeed: number;
+    targetAmount: number;
+    currentPlanAmount: number;
+  }>,
 ) {
   const allocations = new Map<string, number>();
   const activeIndexes = goals.map((_, index) => index);
@@ -338,7 +353,10 @@ function distributeBalance(
     for (const index of activeIndexes) {
       const goal = goals[index];
       const currentAllocation = allocations.get(goal.id) ?? 0;
-      const remainingCapacity = Math.max(0, goal.targetAmount - currentAllocation);
+      const remainingCapacity = Math.max(
+        0,
+        goal.currentPlanAmount - currentAllocation,
+      );
 
       if (remainingCapacity <= 0.01) {
         continue;
