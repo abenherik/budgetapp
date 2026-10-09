@@ -238,6 +238,7 @@ export default function Home() {
               <StatCard label="Fast post: realkredit" value={formatAmount(fixedReserves.mortgageReserve)} caption={`13.000 kr. pr. måned · ${fixedReserves.mortgageMonthsReserved} måned(er) reserveret`} />
               <StatCard label="Fast post: daglige udgifter" value={formatAmount(fixedReserves.groceryReserve)} caption={`${fixedReserves.groceryDaysRemaining} dag(e) tilbage · 350 kr. pr. dag`} />
               <StatCard label="Til mål" value={formatAmount(availableForGoals)} caption="Bankopsparing minus faste poster" />
+              <StatCard label="Overskud" value={formatAmount(summary.remainingReserve)} caption="Bankopsparing efter faste poster og mål" />
             </div>
           </div>
         </section>
