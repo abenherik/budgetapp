@@ -485,6 +485,8 @@ function GoalCard({
   const isBehind = goal.status === "behind";
   const statusStyles = isBehind
     ? "border-rose-200 bg-rose-50 text-rose-700"
+    : goal.status === "completed"
+      ? "border-sky-200 bg-sky-50 text-sky-700"
     : goal.status === "ahead"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : "border-amber-200 bg-amber-50 text-amber-700";
@@ -524,16 +526,18 @@ function GoalCard({
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-slate-200">
           <div
-            className={`h-full rounded-full ${isBehind ? "bg-rose-500" : goal.status === "ahead" ? "bg-emerald-500" : "bg-amber-500"}`}
+            className={`h-full rounded-full ${isBehind ? "bg-rose-500" : goal.status === "completed" ? "bg-sky-500" : goal.status === "ahead" ? "bg-emerald-500" : "bg-amber-500"}`}
             style={{ width: `${Math.min(100, goal.progressPercent)}%` }}
           />
         </div>
       </div>
 
       <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100">
-        {goal.status === "behind" ? (
+        {goal.status === "completed" ? (
+          <>Dette mål er opfyldt.</>
+        ) : goal.status === "behind" ? (
           <>
-            Dette mål har en samlet manko på {formatAmount(goal.shortfall)}.
+            Dette mål mangler {formatAmount(goal.shortfall)} pr. måned.
           </>
         ) : goal.status === "ahead" ? (
           <>
@@ -589,11 +593,11 @@ function CompactChartRow({
         </div>
         <div className="relative h-4 overflow-hidden rounded-full bg-slate-200">
           <div
-            className={`absolute inset-y-0 left-0 rounded-full ${isBehind ? "bg-rose-500/35" : "bg-amber-500/35"}`}
+            className={`absolute inset-y-0 left-0 rounded-full ${isBehind ? "bg-rose-500/35" : goal.status === "completed" ? "bg-sky-500/35" : "bg-amber-500/35"}`}
             style={{ width: `${widthBase}%` }}
           />
           <div
-            className={`absolute inset-y-0 left-0 rounded-full ${isBehind ? "bg-rose-500" : "bg-teal-500"}`}
+            className={`absolute inset-y-0 left-0 rounded-full ${isBehind ? "bg-rose-500" : goal.status === "completed" ? "bg-sky-500" : "bg-teal-500"}`}
             style={{ width: `${allocationWidth}%` }}
           />
         </div>
@@ -605,9 +609,9 @@ function CompactChartRow({
           <p className="mt-1 font-semibold text-slate-950">{formatAmount(goal.allocatedAmount)}</p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Manko</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{goal.status === "completed" ? "Status" : "Manko"}</p>
           <p className={`mt-1 font-semibold ${isBehind ? "text-rose-700" : "text-slate-950"}`}>
-            {goal.shortfall > 0 ? formatAmount(goal.shortfall) : "0 kr."}
+            {goal.status === "completed" ? "Opfyldt" : goal.shortfall > 0 ? formatAmount(goal.shortfall) : "0 kr."}
           </p>
         </div>
       </div>
@@ -616,6 +620,10 @@ function CompactChartRow({
 }
 
 function translateStatus(status: GoalEvaluation["status"]) {
+  if (status === "completed") {
+    return "opfyldt";
+  }
+
   if (status === "ahead") {
     return "foran";
   }

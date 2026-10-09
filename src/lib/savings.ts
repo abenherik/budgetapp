@@ -19,7 +19,7 @@ export type GoalEvaluation = Goal & {
   fundingRatio: number;
   progressPercent: number;
   shortfall: number;
-  status: "ahead" | "on-track" | "behind";
+  status: "completed" | "ahead" | "on-track" | "behind";
 };
 
 export type PortfolioSummary = {
@@ -190,17 +190,12 @@ export function evaluatePortfolio(
       goal.targetAmount > 0
         ? Math.min(100, (allocatedAmount / goal.targetAmount) * 100)
         : 100;
-    const planMonths = getMonthsBetween(goal.createdAt, goal.targetDate);
-    const elapsedMonths = Math.min(
-      planMonths,
-      getMonthsSince(goal.createdAt, referenceDate),
-    );
-    const expectedSavedAmount =
-      planMonths > 0 ? (goal.targetAmount / planMonths) * elapsedMonths : 0;
-    const shortfall = Math.max(0, expectedSavedAmount - allocatedAmount);
+    const shortfall = Math.max(0, goal.monthlyNeed - allocatedAmount);
 
     let status: GoalEvaluation["status"] = "on-track";
-    if (goal.monthlyNeed > 0) {
+    if (allocatedAmount >= goal.targetAmount - 0.01) {
+      status = "completed";
+    } else if (goal.monthlyNeed > 0) {
       if (paceDelta < -0.5) {
         status = "behind";
       } else if (paceDelta > 0.5) {
