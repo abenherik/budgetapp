@@ -28,7 +28,7 @@ test("calculates cumulative shortfall for the elapsed goal period", () => {
   );
 
   assert.equal(goals[0].allocatedAmount, 1000);
-  assert.equal(goals[0].shortfall, 3000);
+  assert.equal(goals[0].shortfall, 5000);
 });
 
 test("keeps the original monthly need as the target date approaches", () => {
@@ -49,12 +49,12 @@ test("keeps the original monthly need as the target date approaches", () => {
   );
 
   assert.equal(goals[0].monthlyNeed, 1000);
-  assert.equal(goals[0].allocatedAmount, 1000);
-  assert.equal(goals[0].shortfall, 0);
-  assert.equal(goals[0].status, "on-track");
+  assert.equal(goals[0].allocatedAmount, 1250);
+  assert.equal(goals[0].shortfall, 750);
+  assert.equal(goals[0].status, "behind");
 });
 
-test("starts counting from the month after a goal is created", () => {
+test("counts the creation month as the first savings month", () => {
   const goal = {
     id: "goal-1",
     name: "Skiferie",
@@ -72,8 +72,8 @@ test("starts counting from the month after a goal is created", () => {
     new Date("2026-10-01T00:00:00.000Z"),
   ).goals[0];
 
-  assert.equal(createdMonth.allocatedAmount, 0);
-  assert.equal(followingMonth.allocatedAmount, 1000);
+  assert.equal(createdMonth.allocatedAmount, 1000);
+  assert.equal(followingMonth.allocatedAmount, 2000);
 });
 
 test("does not fund future months early when the bank balance is high", () => {
@@ -94,9 +94,9 @@ test("does not fund future months early when the bank balance is high", () => {
   );
 
   assert.equal(goals[0].monthlyNeed, 1000);
-  assert.equal(goals[0].allocatedAmount, 1000);
+  assert.equal(goals[0].allocatedAmount, 2000);
   assert.equal(goals[0].shortfall, 0);
-  assert.equal(summary.remainingReserve, 99000);
+  assert.equal(summary.remainingReserve, 98000);
 });
 
 test("keeps excess money as surplus when monthly need is covered", () => {
@@ -119,8 +119,8 @@ test("keeps excess money as surplus when monthly need is covered", () => {
   assert.equal(goals[0].status, "on-track");
   assert.equal(goals[0].shortfall, 0);
   assert.equal(goals[0].paceDelta, 0);
-  assert.equal(goals[0].allocatedAmount, 40000);
-  assert.equal(summary.remainingReserve, 20000);
+  assert.equal(goals[0].allocatedAmount, 60000);
+  assert.equal(summary.remainingReserve, 0);
 });
 
 test("redistributes surplus after a goal is fully funded", () => {
@@ -149,6 +149,6 @@ test("redistributes surplus after a goal is fully funded", () => {
 
   assert.equal(Math.round(goals[0].allocatedAmount * 100) / 100, 1);
   assert.equal(goals[0].status, "completed");
-  assert.equal(Math.round(goals[1].allocatedAmount), 6897);
-  assert.equal(Math.round(summary.remainingReserve), 8102);
+  assert.equal(Math.round(goals[1].allocatedAmount), 10345);
+  assert.equal(Math.round(summary.remainingReserve), 4654);
 });
