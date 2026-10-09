@@ -1,68 +1,165 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Budgetapp / Sparkompas
 
-## Getting Started
+En Next.js-app til at fordele en bankopsparing mellem faste poster og
+opsparingsmål. Appen beregner månedligt behov, faktisk afsat beløb, manko og
+overskud.
 
-First, run the development server:
+## Lokal udvikling
+
+Installer afhængigheder og start udviklingsserveren:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Åbn derefter [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Beregningsprincipper
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Den centrale beregningslogik ligger i
+[`src/lib/savings.ts`](./src/lib/savings.ts), mens visningen ligger i
+[`src/app/page.tsx`](./src/app/page.tsx).
 
-## Learn More
+### Mål og startmåned
 
-To learn more about Next.js, take a look at the following resources:
+- Et mål får automatisk `createdAt`, når det oprettes.
+- `createdAt` er målets startpunkt og skal ikke overskrives af en fælles eller
+  manuel startdato.
+- Startmåneden tæller med. Et mål oprettet i september får derfor sin første
+  planlagte månedsandel i september.
+- Nye mål starter altid i den måned, hvor de bliver oprettet.
+- Målets oprindelige periode går fra oprettelsesmåneden til måldatoen. Det
+  månedlige behov ændrer sig ikke, blot fordi måldatoen nærmer sig.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Eksempel: Et mål på 5.000 kr. med fem planlagte måneder har et fast månedligt
+behov på 1.000 kr. Hvis det oprettes i september, tæller september som måned
+1, oktober som måned 2 osv.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Fordeling
 
-## Deploy on Vercel
+- Bankopsparingen reduceres først med faste poster.
+- Den resterende saldo fordeles efter målenes månedlige behov.
+- Fordelingen kan ikke afsætte penge til fremtidige måneder for tidligt.
+- Et mål kan højst få det beløb, der er nået ifølge den oprindelige plan, eller
+  det resterende beløb op til selve målbeløbet.
+- Når et mål er fuldt opfyldt, fordeles resterende beløb videre til andre mål,
+  der stadig har kapacitet i deres aktuelle plan.
+- Beløb, der ikke skal afsættes til mål endnu, bliver stående som overskud.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Manko og status
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `Afsat til mål` er det beløb, der faktisk er fordelt til målene.
+- `Overskud` er beløbet efter faste poster og målfordeling.
+- `Afsat til mål + Overskud = Bankopsparing - faste poster`.
+- Manko sammenligner faktisk afsat beløb med den kumulative opsparing, der
+  burde være nået fra målets startpunkt.
+- Et mål vises som **på sporet**, når den kumulative plan er dækket.
+- Et mål vises som **bagud**, når den kumulative plan ikke er dækket.
+- Et mål vises som **opfyldt**, når hele målbeløbet er nået.
 
----
+### Lagring og deling
 
-Quick start — push to GitHub and enable automatic deploys
+- Appens data gemmes lokalt i browserens `localStorage`.
+- Data følger derfor ikke automatisk med til en anden telefon eller browser.
+- Funktionen **Del sync-link** koder den aktuelle app-tilstand i en URL, som
+  kan åbnes på en anden enhed.
+- Der bruges ikke en database eller server-side persistence i den nuværende
+  version.
 
-1. Initialize git (if not already) and commit your code locally:
+## Test og build
+
+Kør de automatiserede tests:
 
 ```bash
-git init
+node --experimental-strip-types --test tests/shareState.test.ts tests/parseBankBalanceInput.test.ts
+```
+
+Kør production-build:
+
+```bash
+npm run build
+```
+
+Testene dækker blandt andet:
+
+- parsing af bankbeløb
+- delingslinks
+- fast månedligt behov fra startpunktet
+- inklusiv startmåned
+- manko over tid
+- ingen for tidlig finansiering ved høj banksaldo
+- omfordeling efter fuldt opfyldte mål
+
+## GitHub og Vercel
+
+Projektet ligger på GitHub:
+
+<https://github.com/abenherik/budgetapp>
+
+Repositoryets `master`-branch er koblet til Vercel-projektet
+`budgetapp`. Når en commit pushes til `master`, sker følgende:
+
+1. GitHub modtager committen.
+2. Vercel-integrationen registrerer push'et.
+3. Vercel installerer afhængigheder og kører Next.js-builden.
+4. Ved succes deployes den nye version til production.
+5. GitHub-committen får en Vercel-status som `pending`, `success` eller
+   `failure`.
+
+### Normal deploy-proces
+
+Kontrollér først lokalt:
+
+```bash
+npm run build
+node --experimental-strip-types --test tests/shareState.test.ts tests/parseBankBalanceInput.test.ts
+```
+
+Commit og push derefter:
+
+```bash
 git add .
-git commit -m "Initial commit: Sparkompas"
+git commit -m "Beskriv ændringen"
+git push origin master
 ```
 
-2. Create a repository on GitHub (via the website) and add it as remote, then push:
+Deployment-status kan ses:
+
+- på committen i GitHub under checks/status
+- i Vercel-dashboardet under projektet `budgetapp`
+
+### Vercel CLI
+
+Vercel-projektet er lokalt linket via `.vercel/project.json`. Mappen
+`.vercel` er med vilje ignoreret af Git og skal ikke committes.
+
+Manuel production-deploy med CLI:
 
 ```bash
-git remote add origin <YOUR_GIT_REMOTE_URL>
-git branch -M main
-git push -u origin main
+npm install
+npx vercel login
+npx vercel --prod
 ```
 
-3. In Vercel: klik "New Project", vælg repo og importér. Vercel vil automatisk bygge Next.js-projektet og aktivere automatisk deploy ved hver push.
+Hvis CLI'en melder, at tokenet er ugyldigt, skal der køres `npx vercel login`
+igen. GitHub-integrationen kan stadig deploye automatisk, selv om den lokale
+CLI-session ikke er logget ind.
 
-Manuel deploy med Vercel CLI:
+### Miljøvariabler og sikkerhed
 
-```bash
-npm i -g vercel
-vercel login
-vercel --prod
-```
+- `.env*` er ignoreret af Git og må ikke committes.
+- Hemmelige nøgler skal oprettes i Vercels Project Settings under
+  Environment Variables.
+- Den nuværende app kræver ingen server-side miljøvariabler.
 
-Bemærk: Appen bruger `localStorage` til data — hvis du ønsker server-side persistence senere, tilføj en database og konfigurer miljøvariabler i Vercel.
+## Relevante filer
+
+- [`src/app/page.tsx`](./src/app/page.tsx) — UI, formularer og summary-tiles
+- [`src/lib/savings.ts`](./src/lib/savings.ts) — beregning, fordeling og
+  delingslinks
+- [`tests/shareState.test.ts`](./tests/shareState.test.ts) — scenarier for
+  mål, startmåned og fordeling
+- [`tests/parseBankBalanceInput.test.ts`](./tests/parseBankBalanceInput.test.ts)
+  — validering af bankbeløb
+- [`.gitignore`](./.gitignore) — ignorerede lokale og genererede filer
