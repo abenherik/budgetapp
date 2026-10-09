@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   EMPTY_STATE,
   STORAGE_KEY,
+  buildShareUrl,
   createGoal,
   duplicateGoalForNextYear,
   evaluatePortfolio,
@@ -11,6 +12,8 @@ import {
   formatDate,
   formatPercent,
   getFixedReserveSummary,
+  getSharedStateFromSearch,
+  parseBankBalanceInput,
   sanitizeState,
   type AppState,
   type GoalEvaluation,
@@ -44,6 +47,8 @@ export default function Home() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [form, setForm] = useState<GoalFormState>(EMPTY_FORM);
   const [notice, setNotice] = useState<string | null>(null);
+  const [bankBalanceInput, setBankBalanceInput] = useState<string>(String(EMPTY_STATE.bankBalance));
+  const [shareUrl, setShareUrl] = useState<string>("");
   const formSectionRef = useRef<HTMLElement | null>(null);
   const fixedReserves = useMemo(() => getFixedReserveSummary(), []);
   const availableForGoals = Math.max(0, state.bankBalance - fixedReserves.total);
@@ -66,13 +71,68 @@ export default function Home() {
     }
   }, [editingGoalId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const sharedState = getSharedStateFromSearch(window.location.search);
+    if (sharedState) {
+      setState(sharedState);
+      setNotice("Data hentet fra delingslinket på den anden telefon.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (bankBalanceInput !== "") {
+      setBankBalanceInput(String(state.bankBalance));
+    }
+  }, [state.bankBalance]);
+
   function handleBankBalanceChange(value: string) {
-    const nextBalance = Number(value);
+    setBankBalanceInput(value);
+  }
+
+  function handleShareState() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextShareUrl = buildShareUrl(state, window.location.href);
+    setShareUrl(nextShareUrl);
+
+    navigator.clipboard?.writeText(nextShareUrl).catch(() => undefined);
+
+    if (navigator.share) {
+      navigator.share({
+        title: "Sparkompas",
+        text: "Åbn dette link for at hente de samme opsparingsmål på en anden telefon.",
+        url: nextShareUrl,
+      }).catch(() => undefined);
+    }
+
+    setNotice("Delingslinket er klar. Åbn det på den anden telefon for at hente samme data.");
+  }
+
+  function commitBankBalanceInput() {
+    const nextValue = bankBalanceInput.trim();
+
+    if (nextValue === "") {
+      setState((current) => ({
+        ...current,
+        bankBalance: 0,
+      }));
+      setBankBalanceInput("");
+      return;
+    }
+
+    const nextBalance = parseBankBalanceInput(nextValue);
 
     setState((current) => ({
       ...current,
-      bankBalance: Number.isFinite(nextBalance) ? Math.max(0, nextBalance) : 0,
+      bankBalance: nextBalance,
     }));
+    setBankBalanceInput(String(nextBalance));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -191,7 +251,7 @@ export default function Home() {
                   Når du ændrer saldoen, redigerer et mål, tilføjer et nyt mål eller fjerner et mål, beregnes fordelingen med det samme.
                 </p>
               </div>
-              <span className="text-xs font-medium text-slate-500">Gemt automatisk lokalt i denne browser</span>
+              <span className="text-xs font-medium text-slate-500">Gemt lokalt og delbart via sync-link</span>
             </div>
 
             {notice ? (
@@ -208,8 +268,9 @@ export default function Home() {
                   inputMode="numeric"
                   min="0"
                   step="1"
-                  value={state.bankBalance}
+                  value={bankBalanceInput}
                   onChange={(event) => handleBankBalanceChange(event.target.value)}
+                  onBlur={commitBankBalanceInput}
                   className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
                   placeholder="F.eks. 500000"
                 />
@@ -282,6 +343,23 @@ export default function Home() {
                   </button>
                 ) : null}
               </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleShareState}
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+                >
+                  Del sync-link
+                </button>
+              </div>
+
+              {shareUrl ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <p className="font-semibold">Synk-link</p>
+                  <p className="mt-1 break-all text-xs text-slate-500">{shareUrl}</p>
+                </div>
+              ) : null}
             </form>
           </article>
         </section>
@@ -455,7 +533,7 @@ function GoalCard({
       <div className="mt-5 rounded-2xl bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100">
         {goal.status === "behind" ? (
           <>
-            Dette mål mangler {formatAmount(goal.shortfall)} pr. måned for at holde tempoet.
+            Dette mål har en samlet manko på {formatAmount(goal.shortfall)}.
           </>
         ) : goal.status === "ahead" ? (
           <>

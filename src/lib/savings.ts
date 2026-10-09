@@ -63,6 +63,17 @@ const dateFormatter = new Intl.DateTimeFormat("da-DK", {
   dateStyle: "medium",
 });
 
+export function parseBankBalanceInput(value: string): number {
+  const normalizedValue = value.trim();
+
+  if (normalizedValue === "") {
+    return 0;
+  }
+
+  const nextBalance = Number(normalizedValue);
+  return Number.isFinite(nextBalance) ? Math.max(0, nextBalance) : 0;
+}
+
 export function sanitizeState(raw: unknown): AppState {
   if (!raw || typeof raw !== "object") {
     return EMPTY_STATE;
@@ -79,6 +90,31 @@ export function sanitizeState(raw: unknown): AppState {
     bankBalance: toMoney(candidate.bankBalance),
     goals,
   };
+}
+
+export function buildShareUrl(state: AppState, baseUrl = "https://example.com/"): string {
+  const url = new URL(baseUrl);
+  url.searchParams.set("sync", encodeURIComponent(JSON.stringify(state)));
+  return url.toString();
+}
+
+export function getSharedStateFromSearch(search: string): AppState | null {
+  if (!search) {
+    return null;
+  }
+
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const sharedValue = params.get("sync");
+
+  if (!sharedValue) {
+    return null;
+  }
+
+  try {
+    return sanitizeState(JSON.parse(decodeURIComponent(sharedValue)));
+  } catch {
+    return null;
+  }
 }
 
 export function createGoal(input: {
@@ -154,7 +190,14 @@ export function evaluatePortfolio(
       goal.targetAmount > 0
         ? Math.min(100, (allocatedAmount / goal.targetAmount) * 100)
         : 100;
-    const shortfall = Math.max(0, goal.monthlyNeed - allocatedAmount);
+    const planMonths = getMonthsBetween(goal.createdAt, goal.targetDate);
+    const elapsedMonths = Math.min(
+      planMonths,
+      getMonthsSince(goal.createdAt, referenceDate),
+    );
+    const expectedSavedAmount =
+      planMonths > 0 ? (goal.targetAmount / planMonths) * elapsedMonths : 0;
+    const shortfall = Math.max(0, expectedSavedAmount - allocatedAmount);
 
     let status: GoalEvaluation["status"] = "on-track";
     if (goal.monthlyNeed > 0) {
@@ -210,6 +253,35 @@ export function evaluatePortfolio(
     goals: evaluatedGoals,
     summary,
   };
+}
+
+function getMonthsSince(createdAt: string, referenceDate: Date): number {
+  const createdDate = new Date(createdAt);
+
+  if (Number.isNaN(createdDate.getTime())) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    (referenceDate.getFullYear() - createdDate.getFullYear()) * 12 +
+      (referenceDate.getMonth() - createdDate.getMonth()),
+  );
+}
+
+function getMonthsBetween(createdAt: string, targetDate: string): number {
+  const createdDate = new Date(createdAt);
+  const target = new Date(`${targetDate}T00:00:00`);
+
+  if (Number.isNaN(createdDate.getTime()) || Number.isNaN(target.getTime())) {
+    return 0;
+  }
+
+  return Math.max(
+    1,
+    (target.getFullYear() - createdDate.getFullYear()) * 12 +
+      (target.getMonth() - createdDate.getMonth()),
+  );
 }
 
 export function formatAmount(amount: number): string {
